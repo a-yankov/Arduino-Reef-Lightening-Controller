@@ -58,12 +58,12 @@ int menu = 0;
 //////EEPROM/////////////////
 byte addressChannelOne = 0;
 byte addressChannelTwo = 1;
-byte addressSunriceStartHour = 2;
-byte addressSunriceStartMinute = 3;
+byte addressSunriseStartHour = 2;
+byte addressSunriseStartMinute = 3;
 byte addressSunsetStartHour = 4;
 byte addressSunsetStartMinute = 5;
-byte addressSunriceLongevity = 6;
-byte addressSunsetLongevity = 7;
+byte addressSunriseDuration = 6;
+byte addressSunsetDuration = 7;
 
 byte addressChannelOneDay = 8;
 byte addressChannelTwoDay = 9;
@@ -83,17 +83,17 @@ Thread sunsetCircleThread = Thread();
 int displayChangeCounter = 0;
 int displayTimeChange = 10;
 
-int sunriceStartHour = 0;
-int sunriceStartMinute = 0;
+int sunriseStartHour = 0;
+int sunriseStartMinute = 0;
 
 int sunsetStartHour = 0;
 int sunsetStartMinute = 0;
 
-int sunriceLongevity = 0;
-int sunsetLongevity = 0;
+int sunriseDuration = 0;
+int sunsetDuration = 0;
 
 boolean isSunset;
-boolean isSunrice;
+boolean isSunrise;
 
 
 void setup() {
@@ -122,13 +122,13 @@ void setup() {
   channelOne = EEPROM.read(addressChannelOne);
   channelTwo = EEPROM.read(addressChannelTwo);
 
-  sunriceStartHour = EEPROM.read(addressSunriceStartHour);
-  sunriceStartMinute = EEPROM.read(addressSunriceStartMinute);
+  sunriseStartHour = EEPROM.read(addressSunriseStartHour);
+  sunriseStartMinute = EEPROM.read(addressSunriseStartMinute);
   sunsetStartHour = EEPROM.read(addressSunsetStartHour);
   sunsetStartMinute = EEPROM.read(addressSunsetStartMinute);
 
-  sunriceLongevity = EEPROM.read(addressSunriceLongevity);
-  sunsetLongevity = EEPROM.read(addressSunsetLongevity);
+  sunriseDuration = EEPROM.read(addressSunriseDuration);
+  sunsetDuration = EEPROM.read(addressSunsetDuration);
 
   channelOneDay = EEPROM.read(addressChannelOneDay);
   channelTwoDay = EEPROM.read(addressChannelTwoDay);
@@ -149,12 +149,12 @@ void setup() {
   updateDisplayThread.setInterval(500);
 
   // Configure blinkLedThread
-  sunriseCircleThread.onRun(dayCircle);
-  sunriseCircleThread.setInterval((sunriceLongevity * 60000) / 256);
+  sunriseCircleThread.onRun(sunriseCircle);
+  sunriseCircleThread.setInterval((sunriseDuration * 60000) / 256);
 
   // Configure blinkLedThread
   sunsetCircleThread.onRun(sunsetCircle);
-  sunsetCircleThread.setInterval((sunsetLongevity * 60000) / 256);
+  sunsetCircleThread.setInterval((sunsetDuration * 60000) / 256);
 
   // Adds myThread to the controll
   controll.add(&inputThread);
@@ -173,8 +173,8 @@ void loop() {
   controll.run();
   // Rest of code
 
-  if ((sunriceStartHour == now.hour()) && (sunriceStartMinute == now.minute()) && (now.second() == 0)) {
-    isSunrice = true;
+  if ((sunriseStartHour == now.hour()) && (sunriseStartMinute == now.minute()) && (now.second() == 0)) {
+    isSunrise = true;
   }
   if ((sunsetStartHour == now.hour()) && (sunsetStartMinute == now.minute()) && (now.second() == 0)) {
     isSunset = true;
@@ -229,23 +229,23 @@ void input() {
 
   if (menu == 3) {
     if (buttonRight == HIGH) {
-      if (sunriceStartMinute < 59) {
-        sunriceStartMinute++;
+      if (sunriseStartMinute < 59) {
+        sunriseStartMinute++;
 
-      } else if (sunriceStartMinute == 59) {
-        if (sunriceStartHour < 23) {
-          sunriceStartMinute = 0;
-          sunriceStartHour++;
+      } else if (sunriseStartMinute == 59) {
+        if (sunriseStartHour < 23) {
+          sunriseStartMinute = 0;
+          sunriseStartHour++;
         }
       }
     }
     if (buttonLeft == HIGH) {
-      if (sunriceStartMinute > 0) {
-        sunriceStartMinute--;
-      } else if (sunriceStartMinute == 0) {
-        if (sunriceStartHour > 0) {
-          sunriceStartMinute = 59;
-          sunriceStartHour--;
+      if (sunriseStartMinute > 0) {
+        sunriseStartMinute--;
+      } else if (sunriseStartMinute == 0) {
+        if (sunriseStartHour > 0) {
+          sunriseStartMinute = 59;
+          sunriseStartHour--;
         }
       }
     }
@@ -280,26 +280,26 @@ void input() {
 
   if (menu == 5) {
     if (buttonRight == HIGH) {
-      if (sunriceLongevity < 59) {
-        sunriceLongevity++;
+      if (sunriseDuration < 59) {
+        sunriseDuration++;
       }
     }
     if (buttonLeft == HIGH) {
-      if (sunriceLongevity > 1) {
-        sunriceLongevity--;
+      if (sunriseDuration > 1) {
+        sunriseDuration--;
       }
     }
   }
 
   if (menu == 6) {
     if (buttonRight == HIGH) {
-      if (sunsetLongevity < 59) {
-        sunsetLongevity++;
+      if (sunsetDuration < 59) {
+        sunsetDuration++;
       }
     }
     if (buttonLeft == HIGH) {
-      if (sunsetLongevity > 1) {
-        sunsetLongevity--;
+      if (sunsetDuration > 1) {
+        sunsetDuration--;
       }
     }
   }
@@ -369,13 +369,13 @@ void updateDisplay() {
   } else if (menu == 2) {
     SetChannelTwo();
   } else if (menu == 3) {
-    setSunriceTime();
+    setSunriseTime();
   } else if (menu == 4) {
     setSunsetTime();
   } else if (menu == 5) {
-    setSunriceLongevity();
+    setSunriseDuration();
   } else if (menu == 6) {
-    setSunsetLongevity();
+    setSunsetDuration();
   } else if (menu == 7) {
     SetChannelOneDay();
   } else if (menu == 8) {
@@ -390,9 +390,9 @@ void updateDisplay() {
 }
 
 // callback for dayCircle
-void dayCircle() {
+void sunriseCircle() {
 
-  if (isSunrice) {
+  if (isSunrise) {
     if (channelOne < channelOneDay) {
       channelOne++;
       analogWrite(channelOnePin, channelOne);
@@ -402,7 +402,7 @@ void dayCircle() {
       analogWrite(channelTwoPin, channelTwo);
     }
     if ((channelTwo == channelTwoDay) && (channelOne == channelOneDay)) {
-      isSunrice = false;
+      isSunrise = false;
     }
   }
 }
@@ -450,7 +450,7 @@ void rootMenu() {
   lcd.print(channelTwo);
   lcd.print(" ");
 
-  if (isSunrice) {
+  if (isSunrise) {
     lcd.print("Sunrise");
   }
   if (isSunset) {
@@ -484,14 +484,14 @@ void saveSettings() {
     EEPROM.update(addressChannelOne, channelOne);
     EEPROM.update(addressChannelTwo, channelTwo);
 
-    EEPROM.update(addressSunriceStartHour, sunriceStartHour);
-    EEPROM.update(addressSunriceStartMinute, sunriceStartMinute);
+    EEPROM.update(addressSunriseStartHour, sunriseStartHour);
+    EEPROM.update(addressSunriseStartMinute, sunriseStartMinute);
 
     EEPROM.update(addressSunsetStartHour, sunsetStartHour);
     EEPROM.update(addressSunsetStartMinute, sunsetStartMinute);
 
-    EEPROM.update(addressSunriceLongevity, sunriceLongevity);
-    EEPROM.update(addressSunsetLongevity, sunsetLongevity);
+    EEPROM.update(addressSunriseDuration, sunriseDuration);
+    EEPROM.update(addressSunsetDuration, sunsetDuration);
 
 
     EEPROM.update(addressChannelOneDay, channelOneDay);
@@ -527,33 +527,33 @@ void setSunsetTime() {
   lcd.print(sunsetStartMinute);
 }
 
-void setSunriceTime() {
+void setSunriseTime() {
   lcd.print("Sunrise start at");
   lcd.setCursor(0, 1);
   lcd.print("     ");
-  if (sunriceStartHour < 10) {
+  if (sunriseStartHour < 10) {
     lcd.print("0");
   }
-  lcd.print(sunriceStartHour);
+  lcd.print(sunriseStartHour);
   lcd.print(":");
 
-  if (sunriceStartMinute < 10) {
+  if (sunriseStartMinute < 10) {
     lcd.print("0");
   }
-  lcd.print(sunriceStartMinute);
+  lcd.print(sunriseStartMinute);
 }
 
-void setSunriceLongevity() {
+void setSunriseDuration() {
   lcd.print("Sunrise duration");
   lcd.setCursor(0, 1);
-  lcd.print(sunriceLongevity);
+  lcd.print(sunriseDuration);
   lcd.print(" Min.");
 }
 
-void setSunsetLongevity() {
+void setSunsetDuration() {
   lcd.print("Sunset duration");
   lcd.setCursor(0, 1);
-  lcd.print(sunsetLongevity);
+  lcd.print(sunsetDuration);
   lcd.print(" Min.");
 }
 
