@@ -70,6 +70,11 @@ byte addressChannelTwoDay = 9;
 byte addressChannelOneNight = 10;
 byte addressChannelTwoNight = 11;
 
+////////Set Time Variables//////////
+int varHour;
+int varMinute;
+int varSecond;
+boolean isTimeChanged = false;
 
 ////////////Threads////////////////
 // ThreadController that will controll all threads
@@ -192,7 +197,7 @@ void input() {
 
 
   if (buttonSelect == HIGH) {
-    if (menu == 11) {
+    if (menu == 12) {
       menu = 0;
     } else {
       menu++;
@@ -357,6 +362,46 @@ void input() {
       }
     }
   }
+
+  if (menu == 11) {
+    
+    if (buttonRight == HIGH) {
+      isTimeChanged = true;
+      if (varHour < 23) {
+        if (varMinute == 59) {
+          varHour++;
+          varMinute = 0;
+        } else {
+          varMinute++;
+        }
+      }else if(varHour == 23){
+          if (varMinute < 59){
+            varMinute++;  
+          }
+      }
+    }
+
+    if (buttonLeft == HIGH) {
+      isTimeChanged = true;
+      if (varHour > 0){
+        if (varMinute > 0){
+          varMinute -= 1;
+        }else if(varMinute == 0){
+         varMinute = 59;
+         varHour-=1;  
+        }
+      }else if (varHour == 0){
+        if (varMinute > 0){
+          varMinute -= 1;
+        }
+      }
+  
+
+
+
+    
+    }   
+  }
 }
 
 // callback for Display Update
@@ -385,6 +430,8 @@ void updateDisplay() {
   } else if (menu == 10) {
     SetChannelTwoNight();
   } else if (menu == 11) {
+    setMyClock();
+  } else if (menu == 12) {
     saveSettings();
   }
 }
@@ -425,6 +472,10 @@ void sunsetCircle() {
 
 void rootMenu() {
 
+//  Serial.print(__DATE__);
+//  Serial.print(" ");
+//  Serial.println(__TIME__);
+  
   DateTime now = rtc.now();
   lcd.print("    ");
 
@@ -461,7 +512,7 @@ void rootMenu() {
 
 void SetChannelOne() {
   lcd.print("Set Ch 1 manual:");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print(channelOne);
   analogWrite(channelOnePin, channelOne);
 
@@ -469,7 +520,7 @@ void SetChannelOne() {
 
 void SetChannelTwo() {
   lcd.print("Set Ch 2 manual:");
-  lcd.setCursor(0,1);
+  lcd.setCursor(0, 1);
   lcd.print(channelTwo);
   analogWrite(channelTwoPin, channelTwo);
 
@@ -499,6 +550,12 @@ void saveSettings() {
     EEPROM.update(addressChannelOneNight, channelOneNight);
     EEPROM.update(addressChannelTwoNight, channelTwoNight);
 
+    if(isTimeChanged){
+      rtc.adjust(DateTime(2017, 12, 4, varHour, varMinute, 0));
+      isTimeChanged = false;
+      varHour = 0;
+      varMinute = 0;
+    }
 
     lcd.clear();
     lcd.print("Settings saved");
@@ -582,4 +639,29 @@ void SetChannelTwoNight() {
   lcd.print("Channel 2 Night: ");
   lcd.setCursor(0, 1);
   lcd.print(channelTwoNight);
+}
+
+void setMyClock() {
+
+  varHour;
+  varMinute;
+  varSecond;
+
+  lcd.print("    Set time");
+  lcd.setCursor(4, 1);
+  //show clock to lcd
+  if (varHour < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varHour);
+  lcd.print(':');
+  if (varMinute < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varMinute);
+  lcd.print(':');
+  if (varSecond < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varSecond);
 }
