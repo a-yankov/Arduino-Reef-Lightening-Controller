@@ -1,0 +1,694 @@
+// include the library code:
+#include <LiquidCrystal.h>
+#include <EEPROM.h>
+#include <Wire.h>
+#include <Time.h>
+#include "RTClib.h"
+RTC_DS3231 rtc;
+#include <Thread.h>
+#include <ThreadController.h>
+#include <IRremote.h>
+#include <LiquidCrystal_I2C.h>
+
+// initialize the library by associating any needed LCD interface pin
+// with the arduino pin number it is connected to
+//const int rs = 11, en = 12, d4 = 2, d5 = 3, d6 = 4, d7 = 5;
+//LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+////remote controll////
+int RECV_PIN = 11;
+IRrecv irrecv(RECV_PIN);
+decode_results results;
+long repeat = 0;
+
+////Buttons/////////////
+
+int buttonSelect = 0;
+int buttonDown = 0;
+int buttonUp = 0;
+int buttonLeft = 0;
+int buttonRight = 0;
+
+/////LedsPins/////
+const int channelOnePin = 9;
+const int channelTwoPin = 10;
+
+///channels////////
+int channelOne = 100;
+int channelTwo = 100;
+
+int channelOneDay;
+int channelTwoDay;
+
+int channelOneNight;
+int channelTwoNight;
+
+////////Menus//////////
+int menu = 0;
+
+
+//////EEPROM/////////////////
+byte addressChannelOne = 0;
+byte addressChannelTwo = 1;
+byte addressSunriseStartHour = 2;
+byte addressSunriseStartMinute = 3;
+byte addressSunsetStartHour = 4;
+byte addressSunsetStartMinute = 5;
+byte addressSunriseDuration = 6;
+byte addressSunsetDuration = 7;
+
+byte addressChannelOneDay = 8;
+byte addressChannelTwoDay = 9;
+byte addressChannelOneNight = 10;
+byte addressChannelTwoNight = 11;
+
+////////Set Time Variables//////////
+int varHour;
+int varMinute;
+int varSecond;
+boolean isTimeChanged = false;
+
+////////////Threads////////////////
+// ThreadController that will controll all threads
+ThreadController controll = ThreadController();
+Thread inputThread = Thread();
+Thread updateDisplayThread = Thread();
+Thread sunriseCircleThread = Thread();
+
+Thread sunsetCircleThread = Thread();
+
+int displayChangeCounter = 0;
+int displayTimeChange = 10;
+
+int sunriseStartHour = 0;
+int sunriseStartMinute = 0;
+
+int sunsetStartHour = 0;
+int sunsetStartMinute = 0;
+
+int sunriseDuration = 0;
+int sunsetDuration = 0;
+
+boolean isSunset;
+boolean isSunrise;
+
+
+void setup() {
+  // put your setup code here, to run once:
+
+  Serial.begin(9600);
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  irrecv.enableIRIn(); // Start the receiver
+
+
+
+  // set up the LCD's number of columns and rows:
+  lcd.begin(16, 2);
+
+  ///////READ SETTINGS FROM EEPROM////////////
+  channelOne = EEPROM.read(addressChannelOne);
+  channelTwo = EEPROM.read(addressChannelTwo);
+
+  
+  sunriseStartHour = EEPROM.read(addressSunriseStartHour);
+  sunriseStartMinute = EEPROM.read(addressSunriseStartMinute);
+  sunsetStartHour = EEPROM.read(addressSunsetStartHour);
+  sunsetStartMinute = EEPROM.read(addressSunsetStartMinute);
+  sunriseDuration = EEPROM.read(addressSunriseDuration);
+  sunsetDuration = EEPROM.read(addressSunsetDuration);
+
+  channelOneDay = EEPROM.read(addressChannelOneDay);
+  channelTwoDay = EEPROM.read(addressChannelTwoDay);
+
+  channelOneNight = EEPROM.read(addressChannelOneNight);
+  channelTwoNight = EEPROM.read(addressChannelTwoNight);
+
+  analogWrite(channelOnePin, channelOne);
+  analogWrite(channelTwoPin, channelTwo);
+
+
+  // Configure myThread
+  inputThread.onRun(input);
+  inputThread.setInterval(100);
+
+  // Configure hisThread
+  updateDisplayThread.onRun(updateDisplay);
+  updateDisplayThread.setInterval(250);
+
+  // Configure blinkLedThread
+  sunriseCircleThread.onRun(sunriseCircle);
+  sunriseCircleThread.setInterval((sunriseDuration * 60000) / 256);
+
+  // Configure blinkLedThread
+  sunsetCircleThread.onRun(sunsetCircle);
+  sunsetCircleThread.setInterval((sunsetDuration * 60000) / 256);
+
+  // Adds myThread to the controll
+  controll.add(&inputThread);
+  controll.add(&updateDisplayThread);
+  controll.add(&sunriseCircleThread);
+  controll.add(&sunsetCircleThread);
+}
+
+void loop() {
+  DateTime now = rtc.now();
+  // put your main code here, to run repeatedly:
+
+  // run ThreadController
+  // this will check every thread inside ThreadController,
+  // if it should run. If yes, he will run it;
+  controll.run();
+  // Rest of code
+
+  if ((sunriseStartHour == now.hour()) && (sunriseStartMinute == now.minute()) && (now.second() == 0)) {
+    isSunrise = true;
+  }
+  if ((sunsetStartHour == now.hour()) && (sunsetStartMinute == now.minute()) && (now.second() == 0)) {
+    isSunset = true;
+  }
+
+}
+
+
+
+// callback for input
+void input() {
+  buttonSelect = LOW;
+  buttonDown = LOW;
+  buttonUp = LOW;
+  buttonLeft = LOW;
+  buttonRight = LOW;
+ 
+
+
+
+  if (irrecv.decode(&results)) {
+    Serial.println(results.value);
+
+    
+    if(results.value == 16712445){
+      buttonSelect = HIGH;
+      repeat = 16712445;
+    }else if(results.value == 16736925){
+    buttonUp = HIGH;
+      repeat = 16736925;
+    }else if(results.value == 16754775 ){
+      buttonDown = HIGH;
+      repeat = 16754775;
+    }else if (results.value == 4294967295){
+      if (repeat == 16712445){
+          buttonSelect = HIGH;
+      } else if(repeat == 16736925){
+        buttonUp = HIGH;
+      }else if(repeat == 16754775){
+        buttonDown = HIGH;
+      }
+    }
+    irrecv.resume(); // Receive the next value
+  }
+
+  if (buttonSelect == HIGH) {
+    if (menu == 12) {
+      menu = 0;
+    } else {
+      menu++;
+    }
+    delay(200);
+    lcd.clear();
+  }
+
+  if (menu == 1) {
+    if (buttonUp == HIGH) {
+      if (channelOne < 255) {
+        channelOne++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelOne > 0) {
+        channelOne--;
+      }
+    }
+  }
+
+  if (menu == 2) {
+    if (buttonUp == HIGH) {
+      if (channelTwo < 255) {
+        channelTwo++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelTwo > 0) {
+        channelTwo--;
+      }
+    }
+  }
+
+
+  if (menu == 3) {
+    if (buttonUp == HIGH) {
+      if (sunriseStartMinute < 59) {
+        sunriseStartMinute++;
+
+      } else if (sunriseStartMinute == 59) {
+        if (sunriseStartHour < 23) {
+          sunriseStartMinute = 0;
+          sunriseStartHour++;
+        }
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (sunriseStartMinute > 0) {
+        sunriseStartMinute--;
+      } else if (sunriseStartMinute == 0) {
+        if (sunriseStartHour > 0) {
+          sunriseStartMinute = 59;
+          sunriseStartHour--;
+        }
+      }
+    }
+
+  }
+
+  if (menu == 4) {
+    if (buttonUp == HIGH) {
+      if (sunsetStartMinute < 59) {
+        sunsetStartMinute++;
+
+      } else if (sunsetStartMinute == 59) {
+        if (sunsetStartHour < 23) {
+          sunsetStartMinute = 0;
+          sunsetStartHour++;
+        }
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (sunsetStartMinute > 0) {
+        sunsetStartMinute--;
+      } else if (sunsetStartMinute == 0) {
+        if (sunsetStartHour > 0) {
+          sunsetStartMinute = 59;
+          sunsetStartHour--;
+        }
+      }
+    }
+
+  }
+
+
+  if (menu == 5) {
+    if (buttonUp == HIGH) {
+      if (sunriseDuration < 59) {
+        sunriseDuration++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (sunriseDuration > 1) {
+        sunriseDuration--;
+      }
+    }
+  }
+
+  if (menu == 6) {
+    if (buttonUp == HIGH) {
+      if (sunsetDuration < 59) {
+        sunsetDuration++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (sunsetDuration > 1) {
+        sunsetDuration--;
+      }
+    }
+  }
+
+  if (menu == 7) {
+    if (buttonUp == HIGH) {
+      if (channelOneDay < 255) {
+        channelOneDay++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelOneDay > 0) {
+        channelOneDay--;
+      }
+    }
+
+  }
+
+  if (menu == 8) {
+    if (buttonUp == HIGH) {
+      if (channelTwoDay < 255) {
+        channelTwoDay++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelTwoDay > 0) {
+        channelTwoDay--;
+      }
+    }
+
+  }
+
+  if (menu == 9) {
+    if (buttonUp == HIGH) {
+      if (channelOneNight < 255) {
+        channelOneNight++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelOneNight > 0) {
+        channelOneNight--;
+      }
+    }
+  }
+
+  if (menu == 10) {
+    if (buttonUp == HIGH) {
+      if (channelTwoNight < 255) {
+        channelTwoNight++;
+      }
+    }
+    if (buttonDown == HIGH) {
+      if (channelTwoNight > 0) {
+        channelTwoNight--;
+      }
+    }
+  }
+
+  if (menu == 11) {
+    
+    if (buttonUp == HIGH) {
+      isTimeChanged = true;
+      if (varHour < 23) {
+        if (varMinute == 59) {
+          varHour++;
+          varMinute = 0;
+        } else {
+          varMinute++;
+        }
+      }else if(varHour == 23){
+          if (varMinute < 59){
+            varMinute++;  
+          }
+      }
+    }
+
+    if (buttonDown == HIGH) {
+      isTimeChanged = true;
+      if (varHour > 0){
+        if (varMinute > 0){
+          varMinute -= 1;
+        }else if(varMinute == 0){
+         varMinute = 59;
+         varHour-=1;  
+        }
+      }else if (varHour == 0){
+        if (varMinute > 0){
+          varMinute -= 1;
+        }
+      }
+    }
+  }
+  if (menu == 12) {
+    
+  
+  }
+}
+
+// callback for Display Update
+void updateDisplay() {
+  //lcd.clear();
+  if (menu == 0) {
+    rootMenu();
+  } else if (menu == 1) {
+    SetChannelOne();
+  } else if (menu == 2) {
+    SetChannelTwo();
+  } else if (menu == 3) {
+    setSunriseTime();
+  } else if (menu == 4) {
+    setSunsetTime();
+  } else if (menu == 5) {
+    setSunriseDuration();
+  } else if (menu == 6) {
+    setSunsetDuration();
+  } else if (menu == 7) {
+    SetChannelOneDay();
+  } else if (menu == 8) {
+    SetChannelTwoDay();
+  } else if (menu == 9) {
+    SetChannelOneNight();
+  } else if (menu == 10) {
+    SetChannelTwoNight();
+  } else if (menu == 11) {
+    setMyClock();
+  } else if (menu == 12) {
+    saveSettings();
+  }
+}
+
+// callback for dayCircle
+void sunriseCircle() {
+
+  if (isSunrise) {
+    if (channelOne < channelOneDay) {
+      channelOne++;
+      analogWrite(channelOnePin, channelOne);
+    }
+    if (channelTwo < channelTwoDay) {
+      channelTwo++;
+      analogWrite(channelTwoPin, channelTwo);
+    }
+    if ((channelTwo == channelTwoDay) && (channelOne == channelOneDay)) {
+      isSunrise = false;
+    }
+  }
+}
+
+void sunsetCircle() {
+  if (isSunset) {
+    if (channelOne > channelOneNight) {
+      channelOne--;
+      analogWrite(channelOnePin, channelOne);
+    }
+    if (channelTwo > channelTwoNight) {
+      channelTwo--;
+      analogWrite(channelTwoPin, channelTwo);
+    }
+    if ((channelOne == channelOneNight) && (channelTwo == channelTwoNight)) {
+      isSunset = false;
+    }
+  }
+}
+
+void rootMenu() {
+
+//  Serial.print(__DATE__);
+//  Serial.print(" ");
+//  Serial.println(__TIME__);
+  lcd.setCursor(0, 0);
+  DateTime now = rtc.now();
+  lcd.print("    ");
+
+  //show clock to lcd
+  if (now.hour() < 10) {
+    lcd.print('0');
+  }
+  lcd.print(now.hour());
+  lcd.print(':');
+  if (now.minute() < 10) {
+    lcd.print('0');
+  }
+  lcd.print(now.minute());
+  lcd.print(':');
+  if (now.second() < 10) {
+    lcd.print('0');
+  }
+  lcd.print(now.second());
+  ///////////////////////////
+  lcd.setCursor(0, 1);
+  lcd.print(channelOne);
+  lcd.print(" ");
+  lcd.print(channelTwo);
+  lcd.print(" ");
+
+  if (isSunrise) {
+    lcd.print("Sunrise");
+  }
+  if (isSunset) {
+    lcd.print("Sunset");
+  }
+
+}
+
+void SetChannelOne() {
+  lcd.setCursor(0, 0);
+  lcd.print("Set Ch 1 manual:");
+  lcd.setCursor(0, 1);
+  lcd.print(channelOne);
+  analogWrite(channelOnePin, channelOne);
+
+}
+
+void SetChannelTwo() {
+  lcd.setCursor(0, 0);
+  lcd.print("Set Ch 2 manual:");
+  lcd.setCursor(0, 1);
+  lcd.print(channelTwo);
+  analogWrite(channelTwoPin, channelTwo);
+
+}
+
+void saveSettings() {
+  lcd.setCursor(0, 0);
+  lcd.print("Save settings");
+  lcd.setCursor(13, 1);
+  lcd.print("Yes");
+
+  if (buttonUp == HIGH) {
+    EEPROM.update(addressChannelOne, channelOne);
+    EEPROM.update(addressChannelTwo, channelTwo);
+
+    EEPROM.update(addressSunriseStartHour, sunriseStartHour);
+    EEPROM.update(addressSunriseStartMinute, sunriseStartMinute);
+
+    EEPROM.update(addressSunsetStartHour, sunsetStartHour);
+    EEPROM.update(addressSunsetStartMinute, sunsetStartMinute);
+
+    EEPROM.update(addressSunriseDuration, sunriseDuration);
+    EEPROM.update(addressSunsetDuration, sunsetDuration);
+
+
+    EEPROM.update(addressChannelOneDay, channelOneDay);
+    EEPROM.update(addressChannelTwoDay, channelTwoDay);
+    EEPROM.update(addressChannelOneNight, channelOneNight);
+    EEPROM.update(addressChannelTwoNight, channelTwoNight);
+
+    if(isTimeChanged){
+      rtc.adjust(DateTime(2017, 12, 4, varHour, varMinute, 0));
+      isTimeChanged = false;
+      varHour = 0;
+      varMinute = 0;
+    }
+
+    lcd.clear();
+    lcd.print("Settings saved");
+    delay(3000);
+    menu = 0;
+  }
+}
+
+void setTime() {
+
+}
+
+void setSunsetTime() {
+  lcd.setCursor(0, 0);
+  lcd.print("Sunset start at");
+  lcd.setCursor(0, 1);
+  lcd.print("     ");
+  if (sunsetStartHour < 10) {
+    lcd.print("0");
+  }
+  lcd.print(sunsetStartHour);
+  lcd.print(":");
+
+  if (sunsetStartMinute < 10) {
+    lcd.print("0");
+  }
+  lcd.print(sunsetStartMinute);
+}
+
+void setSunriseTime() {
+  lcd.setCursor(0, 0);
+  lcd.print("Sunrise start at");
+  lcd.setCursor(0, 1);
+  lcd.print("     ");
+  if (sunriseStartHour < 10) {
+    lcd.print("0");
+  }
+  lcd.print(sunriseStartHour);
+  lcd.print(":");
+
+  if (sunriseStartMinute < 10) {
+    lcd.print("0");
+  }
+  lcd.print(sunriseStartMinute);
+}
+
+void setSunriseDuration() {
+  lcd.setCursor(0, 0);
+  lcd.print("Sunrise duration");
+  lcd.setCursor(0, 1);
+  lcd.print(sunriseDuration);
+  lcd.print(" Min.");
+}
+
+void setSunsetDuration() {
+  lcd.setCursor(0, 0);
+  lcd.print("Sunset duration");
+  lcd.setCursor(0, 1);
+  lcd.print(sunsetDuration);
+  lcd.print(" Min.");
+}
+
+
+void SetChannelOneDay() {
+  lcd.setCursor(0, 0);
+  lcd.print("Channel 1 Day: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelOneDay);
+
+}
+
+void SetChannelTwoDay() {
+  lcd.setCursor(0, 0);
+  lcd.print("Channel 2 Day: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelTwoDay);
+
+}
+
+void SetChannelOneNight() {
+  lcd.setCursor(0, 0);
+  lcd.print("Channel 1 Night: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelOneNight);
+}
+
+void SetChannelTwoNight() {
+  lcd.setCursor(0, 0);
+  lcd.print("Channel 2 Night: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelTwoNight);
+}
+
+void setMyClock() {
+
+  varHour;
+  varMinute;
+  varSecond;
+  
+  lcd.setCursor(0, 0);
+  lcd.print("    Set time");
+  lcd.setCursor(4, 1);
+  //show clock to lcd
+  if (varHour < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varHour);
+  lcd.print(':');
+  if (varMinute < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varMinute);
+  lcd.print(':');
+  if (varSecond < 10) {
+    lcd.print('0');
+  }
+  lcd.print(varSecond);
+}
