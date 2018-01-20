@@ -620,7 +620,7 @@ void saveSettings() {
     
     EEPROM.update(addressChannelOneNight, channelOneNight);
     EEPROM.update(addressChannelTwoNight, channelTwoNight);
-    EEPROM.update(addressChannelTwoNight, channelThreeNight);
+    EEPROM.update(addressChannelThreeNight, channelThreeNight);
 
     if(isTimeChanged){
       rtc.adjust(DateTime(2017, 12, 4, varHour, varMinute, 0));
