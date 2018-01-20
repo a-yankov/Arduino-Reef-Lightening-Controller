@@ -40,16 +40,20 @@ int buttonRight = 0;
 /////LedsPins/////
 const int channelOnePin = 10;
 const int channelTwoPin = 9;
+const int channelThreePin = 8;
 
 ///channels////////
 int channelOne = 100;
 int channelTwo = 100;
+int channelThree = 100;
 
 int channelOneDay;
 int channelTwoDay;
+int channelThreeDay;
 
 int channelOneNight;
 int channelTwoNight;
+int channelThreeNight;
 
 ////////Menus//////////
 int menu = 0;
@@ -58,18 +62,20 @@ int menu = 0;
 //////EEPROM/////////////////
 byte addressChannelOne = 0;
 byte addressChannelTwo = 1;
-byte addressSunriseStartHour = 2;
-byte addressSunriseStartMinute = 3;
-byte addressSunsetStartHour = 4;
-byte addressSunsetStartMinute = 5;
-byte addressSunriseDuration = 6;
-byte addressSunsetDuration = 7;
+byte addressChannelThree = 2;
+byte addressSunriseStartHour = 3;
+byte addressSunriseStartMinute = 4;
+byte addressSunsetStartHour = 5;
+byte addressSunsetStartMinute = 6;
+byte addressSunriseDuration = 7;
+byte addressSunsetDuration = 8;
 
-byte addressChannelOneDay = 8;
-byte addressChannelTwoDay = 9;
-byte addressChannelOneNight = 10;
-byte addressChannelTwoNight = 11;
-
+byte addressChannelOneDay = 9;
+byte addressChannelTwoDay = 10;
+byte addressChannelThreeDay = 11;
+byte addressChannelOneNight = 12;
+byte addressChannelTwoNight = 13;
+byte addressChannelThreeNight = 14;
 ////////Set Time Variables//////////
 int varHour;
 int varMinute;
@@ -117,6 +123,7 @@ void setup() {
   pinMode(buttonPinRight, INPUT);
   pinMode(channelOnePin, OUTPUT);
   pinMode(channelTwoPin, OUTPUT);
+  pinMode(channelThreePin, OUTPUT);
 
 
 
@@ -126,6 +133,7 @@ void setup() {
   ///////READ SETTINGS FROM EEPROM////////////
   channelOne = EEPROM.read(addressChannelOne);
   channelTwo = EEPROM.read(addressChannelTwo);
+  channelThree = EEPROM.read(addressChannelThree);
 
   sunriseStartHour = EEPROM.read(addressSunriseStartHour);
   sunriseStartMinute = EEPROM.read(addressSunriseStartMinute);
@@ -137,12 +145,15 @@ void setup() {
 
   channelOneDay = EEPROM.read(addressChannelOneDay);
   channelTwoDay = EEPROM.read(addressChannelTwoDay);
-
+  channelThreeDay = EEPROM.read(addressChannelThreeDay);
+  
   channelOneNight = EEPROM.read(addressChannelOneNight);
   channelTwoNight = EEPROM.read(addressChannelTwoNight);
+  channelThreeNight = EEPROM.read(addressChannelThreeNight);
 
   analogWrite(channelOnePin, channelOne);
   analogWrite(channelTwoPin, channelTwo);
+  analogWrite(channelThreePin, channelThree);
 
 
   // Configure myThread
@@ -197,7 +208,7 @@ void input() {
 
 
   if (buttonSelect == HIGH) {
-    if (menu == 12) {
+    if (menu == 16) {
       menu = 0;
     } else {
       menu++;
@@ -231,8 +242,20 @@ void input() {
     }
   }
 
+ if (menu == 3) {
+    if (buttonRight == HIGH) {
+      if (channelThree < 255) {
+        channelThree++;
+      }
+    }
+    if (buttonLeft == HIGH) {
+      if (channelThree > 0) {
+        channelThree--;
+      }
+    }
+  }
 
-  if (menu == 3) {
+  if (menu == 4) {
     if (buttonRight == HIGH) {
       if (sunriseStartMinute < 59) {
         sunriseStartMinute++;
@@ -257,7 +280,7 @@ void input() {
 
   }
 
-  if (menu == 4) {
+  if (menu == 5) {
     if (buttonRight == HIGH) {
       if (sunsetStartMinute < 59) {
         sunsetStartMinute++;
@@ -283,7 +306,7 @@ void input() {
   }
 
 
-  if (menu == 5) {
+  if (menu == 6) {
     if (buttonRight == HIGH) {
       if (sunriseDuration < 59) {
         sunriseDuration++;
@@ -296,7 +319,7 @@ void input() {
     }
   }
 
-  if (menu == 6) {
+  if (menu == 7) {
     if (buttonRight == HIGH) {
       if (sunsetDuration < 59) {
         sunsetDuration++;
@@ -309,7 +332,7 @@ void input() {
     }
   }
 
-  if (menu == 7) {
+  if (menu == 8) {
     if (buttonRight == HIGH) {
       if (channelOneDay < 255) {
         channelOneDay++;
@@ -323,7 +346,7 @@ void input() {
 
   }
 
-  if (menu == 8) {
+  if (menu == 9) {
     if (buttonRight == HIGH) {
       if (channelTwoDay < 255) {
         channelTwoDay++;
@@ -337,7 +360,21 @@ void input() {
 
   }
 
-  if (menu == 9) {
+  if (menu == 10) {
+    if (buttonRight == HIGH) {
+      if (channelThreeDay < 255) {
+        channelThreeDay++;
+      }
+    }
+    if (buttonLeft == HIGH) {
+      if (channelThreeDay > 0) {
+        channelThreeDay--;
+      }
+    }
+
+  }
+
+  if (menu == 11) {
     if (buttonRight == HIGH) {
       if (channelOneNight < 255) {
         channelOneNight++;
@@ -350,7 +387,7 @@ void input() {
     }
   }
 
-  if (menu == 10) {
+  if (menu == 12) {
     if (buttonRight == HIGH) {
       if (channelTwoNight < 255) {
         channelTwoNight++;
@@ -363,7 +400,20 @@ void input() {
     }
   }
 
-  if (menu == 11) {
+  if (menu == 13) {
+    if (buttonRight == HIGH) {
+      if (channelThreeNight < 255) {
+        channelThreeNight++;
+      }
+    }
+    if (buttonLeft == HIGH) {
+      if (channelThreeNight > 0) {
+        channelThreeNight--;
+      }
+    }
+  }
+
+  if (menu == 14) {
     
     if (buttonRight == HIGH) {
       isTimeChanged = true;
@@ -394,12 +444,7 @@ void input() {
         if (varMinute > 0){
           varMinute -= 1;
         }
-      }
-  
-
-
-
-    
+     }   
     }   
   }
 }
@@ -414,24 +459,30 @@ void updateDisplay() {
   } else if (menu == 2) {
     SetChannelTwo();
   } else if (menu == 3) {
-    setSunriseTime();
+    SetChannelThree();
   } else if (menu == 4) {
-    setSunsetTime();
+    setSunriseTime();
   } else if (menu == 5) {
-    setSunriseDuration();
+    setSunsetTime();
   } else if (menu == 6) {
-    setSunsetDuration();
+    setSunriseDuration();
   } else if (menu == 7) {
-    SetChannelOneDay();
+    setSunsetDuration();
   } else if (menu == 8) {
-    SetChannelTwoDay();
+    SetChannelOneDay();
   } else if (menu == 9) {
-    SetChannelOneNight();
-  } else if (menu == 10) {
-    SetChannelTwoNight();
+    SetChannelTwoDay();
+  }else if (menu == 10) {
+    SetChannelThreeDay();
   } else if (menu == 11) {
-    setMyClock();
+    SetChannelOneNight();
   } else if (menu == 12) {
+    SetChannelTwoNight();
+  } else if (menu == 13) {
+    SetChannelThreeNight();
+  } else if (menu == 14) {
+    setMyClock();
+  } else if (menu == 15) {
     saveSettings();
   }
 }
@@ -448,7 +499,12 @@ void sunriseCircle() {
       channelTwo++;
       analogWrite(channelTwoPin, channelTwo);
     }
-    if ((channelTwo == channelTwoDay) && (channelOne == channelOneDay)) {
+    if (channelThree < channelThreeDay) {
+      channelThree++;
+      analogWrite(channelThreePin, channelThree);
+    }
+    
+    if ((channelTwo == channelTwoDay) && (channelOne == channelOneDay)&& (channelThree == channelThreeDay)) {
       isSunrise = false;
     }
   }
@@ -464,7 +520,11 @@ void sunsetCircle() {
       channelTwo--;
       analogWrite(channelTwoPin, channelTwo);
     }
-    if ((channelOne == channelOneNight) && (channelTwo == channelTwoNight)) {
+    if (channelThree > channelThreeNight) {
+      channelThree--;
+      analogWrite(channelThreePin, channelThree);
+    }
+    if ((channelOne == channelOneNight) && (channelTwo == channelTwoNight) && (channelThree == channelThreeNight)) {
       isSunset = false;
     }
   }
@@ -500,14 +560,15 @@ void rootMenu() {
   lcd.print(" ");
   lcd.print(channelTwo);
   lcd.print(" ");
-
+  lcd.print(channelThree);
+  lcd.print(" ");
+  
   if (isSunrise) {
     lcd.print("Sunrise");
   }
   if (isSunset) {
     lcd.print("Sunset");
   }
-
 }
 
 void SetChannelOne() {
@@ -523,7 +584,13 @@ void SetChannelTwo() {
   lcd.setCursor(0, 1);
   lcd.print(channelTwo);
   analogWrite(channelTwoPin, channelTwo);
+}
 
+void SetChannelThree() {
+  lcd.print("Set Ch 3 manual:");
+  lcd.setCursor(0, 1);
+  lcd.print(channelThree);
+  analogWrite(channelThreePin, channelThree);
 }
 
 void saveSettings() {
@@ -534,7 +601,9 @@ void saveSettings() {
   if (buttonRight == HIGH) {
     EEPROM.update(addressChannelOne, channelOne);
     EEPROM.update(addressChannelTwo, channelTwo);
+    EEPROM.update(addressChannelThree, channelThree);
 
+  
     EEPROM.update(addressSunriseStartHour, sunriseStartHour);
     EEPROM.update(addressSunriseStartMinute, sunriseStartMinute);
 
@@ -547,8 +616,11 @@ void saveSettings() {
 
     EEPROM.update(addressChannelOneDay, channelOneDay);
     EEPROM.update(addressChannelTwoDay, channelTwoDay);
+    EEPROM.update(addressChannelThreeDay, channelThreeDay);
+    
     EEPROM.update(addressChannelOneNight, channelOneNight);
     EEPROM.update(addressChannelTwoNight, channelTwoNight);
+    EEPROM.update(addressChannelTwoNight, channelThreeNight);
 
     if(isTimeChanged){
       rtc.adjust(DateTime(2017, 12, 4, varHour, varMinute, 0));
@@ -562,10 +634,6 @@ void saveSettings() {
     delay(3000);
     menu = 0;
   }
-}
-
-void setTime() {
-
 }
 
 void setSunsetTime() {
@@ -626,7 +694,11 @@ void SetChannelTwoDay() {
   lcd.print("Channel 2 Day: ");
   lcd.setCursor(0, 1);
   lcd.print(channelTwoDay);
-
+}
+void SetChannelThreeDay() {
+  lcd.print("Channel 3 Day: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelThreeDay);
 }
 
 void SetChannelOneNight() {
@@ -639,6 +711,12 @@ void SetChannelTwoNight() {
   lcd.print("Channel 2 Night: ");
   lcd.setCursor(0, 1);
   lcd.print(channelTwoNight);
+}
+
+void SetChannelThreeNight() {
+  lcd.print("Channel 3 Night: ");
+  lcd.setCursor(0, 1);
+  lcd.print(channelThreeNight);
 }
 
 void setMyClock() {
